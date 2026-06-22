@@ -257,6 +257,7 @@ def main():
 /_/    \__,_/_/   \__,_/_/ /_/ /_/\____/_/ /_/\____/____/\__/
                                                              
     v2.0 - Parameter Discovery & Fuzzing Tool
+    Built by baba01hacker
 {Colors.RESET}""")
 
     ghost = ParamGhost(

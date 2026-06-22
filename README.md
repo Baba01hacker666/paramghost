@@ -1,4 +1,6 @@
 # ParamGhost 👻
+*Built by baba01hacker*
+
 
 ParamGhost is an advanced parameter discovery and fuzzing tool designed to uncover hidden or unused HTTP parameters by analyzing JavaScript sources and performing response difference correlation. 
 
