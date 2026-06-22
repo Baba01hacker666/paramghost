@@ -46,6 +46,7 @@ python3 paramghost.py -u <target_url> [options]
 | `-H`, `--header` | Header | Custom header (e.g. `-H "Authorization: Bearer token"`). Can be used multiple times. |
 | `-c`, `--cookie` | Cookie | Custom cookies (e.g. `-c "session=123; user=admin"`). |
 | `-x`, `--proxy` | Proxy | HTTP/HTTPS proxy (e.g. `-x http://127.0.0.1:8080`). |
+| `--no-redirects` | No Redirects | Disable following HTTP redirects. |
 | `-o`, `--output` | Output | Output file to save results in JSON format. |
 
 ### Example

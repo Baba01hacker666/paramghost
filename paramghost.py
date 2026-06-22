@@ -53,11 +53,12 @@ COMMON_JS_KEYWORDS = {
 }
 
 class ParamGhost:
-    def __init__(self, target_url, workers=10, timeout=10, headers=None, cookies=None, proxy=None, delay=0):
+    def __init__(self, target_url, workers=10, timeout=10, headers=None, cookies=None, proxy=None, delay=0, allow_redirects=True):
         self.target_url = self.normalize_url(target_url)
         self.workers = workers
         self.timeout = timeout
         self.delay = delay
+        self.allow_redirects = allow_redirects
         
         self.headers = {
             'User-Agent': 'ParamGhost/2.0 (Security Testing)'
@@ -78,7 +79,7 @@ class ParamGhost:
         self.proxies = {"http": proxy, "https": proxy} if proxy else None
         
         self.session = requests.Session()
-        retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+        retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
         adapter = HTTPAdapter(max_retries=retries)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
@@ -100,7 +101,7 @@ class ParamGhost:
                 proxies=self.proxies, 
                 timeout=self.timeout, 
                 verify=False, 
-                allow_redirects=True
+                allow_redirects=self.allow_redirects
             )
         except requests.exceptions.RequestException as e:
             return None
@@ -246,6 +247,7 @@ def main():
     parser.add_argument("-H", "--header", action='append', help="Custom header (e.g. 'Authorization: Bearer token')")
     parser.add_argument("-c", "--cookie", help="Custom cookies (e.g. 'session=123; user=admin')")
     parser.add_argument("-x", "--proxy", help="HTTP/HTTPS proxy (e.g. 'http://127.0.0.1:8080')")
+    parser.add_argument("--no-redirects", action="store_true", help="Disable following HTTP redirects")
     parser.add_argument("-o", "--output", help="Output JSON file for results")
     
     args = parser.parse_args()
@@ -268,7 +270,8 @@ def main():
         headers=args.header,
         cookies=args.cookie,
         proxy=args.proxy,
-        delay=args.delay
+        delay=args.delay,
+        allow_redirects=not args.no_redirects
     )
     
     js_urls, base_text = ghost.get_js_files()
