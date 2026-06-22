@@ -40,6 +40,7 @@ python3 paramghost.py -u <target_url> [options]
 |---|---|---|
 | `-u`, `--url` | Target URL | The base URL to scan (e.g. `http://example.com/app`). **(Required)** |
 | `-w`, `--workers` | Workers | Number of concurrent workers (default: `10`). |
+| `-p`, `--passive` | Passive Sources | Collect parameters from passive sources (Wayback, OTX, CommonCrawl). |
 | `-t`, `--timeout` | Timeout | HTTP request timeout in seconds (default: `10`). |
 | `-d`, `--delay` | Delay | Delay between requests in seconds (default: `0`). |
 | `-W`, `--wordlist` | Wordlist | Custom wordlist file containing parameters to fuzz. |

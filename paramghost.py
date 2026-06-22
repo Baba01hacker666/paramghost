@@ -162,6 +162,90 @@ class ParamGhost:
                 
         return list(filtered_params)
 
+    def extract_params_from_urls(self, urls):
+        params = set()
+        for u in urls:
+            if not u: continue
+            try:
+                parsed = urlparse(u)
+                qs = parse_qsl(parsed.query)
+                for k, v in qs:
+                    k_lower = k.lower()
+                    if 1 < len(k) < 32 and k_lower not in COMMON_JS_KEYWORDS:
+                        params.add(k)
+            except Exception:
+                pass
+        return params
+
+    def get_passive_params(self):
+        domain = urlparse(self.target_url).netloc.split(':')[0]
+        passive_params = set()
+        print_info(f"Querying passive sources for {domain} (Wayback, OTX, CommonCrawl)...")
+        
+        def fetch_wayback():
+            print_info("  -> Querying Wayback Machine...")
+            url = f"http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&fl=original&collapse=urlkey"
+            try:
+                resp = requests.get(url, timeout=15)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data and len(data) > 1:
+                        return self.extract_params_from_urls([row[0] for row in data[1:]])
+            except Exception as e:
+                print_error(f"  -> Wayback Machine failed: {e}")
+            return set()
+
+        def fetch_otx():
+            print_info("  -> Querying AlienVault OTX...")
+            url = f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/url_list?limit=500"
+            try:
+                resp = requests.get(url, timeout=15)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if "url_list" in data:
+                        return self.extract_params_from_urls([item["url"] for item in data["url_list"]])
+            except Exception as e:
+                print_error(f"  -> AlienVault OTX failed: {e}")
+            return set()
+
+        def fetch_commoncrawl():
+            print_info("  -> Querying CommonCrawl (latest index)...")
+            try:
+                info_resp = requests.get("https://index.commoncrawl.org/collinfo.json", timeout=10)
+                if info_resp.status_code == 200:
+                    indexes = info_resp.json()
+                    latest_index = indexes[0]['cdx-api']
+                    url = f"{latest_index}?url=*.{domain}/*&output=json&fl=url"
+                    resp = requests.get(url, timeout=15)
+                    if resp.status_code == 200:
+                        urls = []
+                        for line in resp.text.splitlines():
+                            if line.strip():
+                                try:
+                                    data = json.loads(line)
+                                    urls.append(data.get('url'))
+                                except:
+                                    pass
+                        return self.extract_params_from_urls(urls)
+            except Exception as e:
+                print_error(f"  -> CommonCrawl failed: {e}")
+            return set()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [
+                executor.submit(fetch_wayback),
+                executor.submit(fetch_otx),
+                executor.submit(fetch_commoncrawl)
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    passive_params.update(future.result())
+                except Exception:
+                    pass
+                    
+        print_success(f"Found {len(passive_params)} unique parameters from passive sources.")
+        return passive_params
+
     @staticmethod
     def compare_responses(base_text, fuzz_text):
         if abs(len(base_text) - len(fuzz_text)) == 0 and base_text == fuzz_text:
@@ -241,6 +325,7 @@ def main():
     )
     parser.add_argument("-u", "--url", required=True, help="Target URL to scan")
     parser.add_argument("-w", "--workers", type=int, default=10, help="Number of concurrent workers")
+    parser.add_argument("-p", "--passive", action="store_true", help="Collect parameters from passive sources (Wayback, OTX, CommonCrawl)")
     parser.add_argument("-t", "--timeout", type=int, default=10, help="HTTP request timeout in seconds")
     parser.add_argument("-d", "--delay", type=float, default=0, help="Delay between requests in seconds")
     parser.add_argument("-W", "--wordlist", help="Custom wordlist file containing parameters to fuzz")
@@ -302,6 +387,13 @@ def main():
             print_error(f"Failed to load wordlist {args.wordlist}: {e}")
             sys.exit(1)
             
+    # Add passive sources if requested
+    if args.passive:
+        passive_params = ghost.get_passive_params()
+        for pp in passive_params:
+            if pp not in params:
+                params.append(pp)
+
     print_success(f"Extracted/Loaded {len(params)} unique potential parameters.")
     
     results = ghost.fuzz_params(params, base_text)
