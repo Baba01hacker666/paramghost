@@ -237,11 +237,16 @@ class ParamGhost:
                 executor.submit(fetch_otx),
                 executor.submit(fetch_commoncrawl)
             ]
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    passive_params.update(future.result())
-                except Exception:
-                    pass
+            
+            # Use a strict 20-second global timeout for all passive sources
+            try:
+                for future in concurrent.futures.as_completed(futures, timeout=20):
+                    try:
+                        passive_params.update(future.result())
+                    except Exception:
+                        pass
+            except concurrent.futures.TimeoutError:
+                print_warning("Passive sources extraction timed out after 20 seconds. Some results may be missing.")
                     
         print_success(f"Found {len(passive_params)} unique parameters from passive sources.")
         return passive_params
@@ -265,9 +270,9 @@ class ParamGhost:
         if not resp:
             return None
             
-        ratio = self.compare_responses(base_text, resp.text)
-        
-        if ratio < (baseline_ratio - 0.05):
+        # ASP.NET and many frameworks have dynamic tokens (CSRF, ViewState) changing every request.
+        # So we can't use strict length checks. We rely purely on the ratio dropping significantly below baseline.
+        if ratio < (baseline_ratio - 0.02):
             return {
                 "param": param, 
                 "ratio": ratio, 
@@ -361,7 +366,13 @@ def main():
     
     js_urls, base_text = ghost.get_js_files()
     if not base_text:
-        sys.exit(1)
+        # If get_js_files failed to get base_text (e.g. no script tags but request succeeded, or request failed)
+        # let's try one more direct fetch just in case, or default to empty string to allow fuzzing to proceed
+        resp = ghost.fetch_url(ghost.target_url)
+        base_text = resp.text if resp else ""
+        
+        if not base_text:
+            print_warning("Could not fetch base content. Fuzzing may produce unreliable results.")
         
     params = ghost.extract_params_from_js(js_urls)
     
