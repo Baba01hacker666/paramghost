@@ -242,6 +242,7 @@ def main():
     parser.add_argument("-w", "--workers", type=int, default=10, help="Number of concurrent workers")
     parser.add_argument("-t", "--timeout", type=int, default=10, help="HTTP request timeout in seconds")
     parser.add_argument("-d", "--delay", type=float, default=0, help="Delay between requests in seconds")
+    parser.add_argument("-W", "--wordlist", help="Custom wordlist file containing parameters to fuzz")
     parser.add_argument("-H", "--header", action='append', help="Custom header (e.g. 'Authorization: Bearer token')")
     parser.add_argument("-c", "--cookie", help="Custom cookies (e.g. 'session=123; user=admin')")
     parser.add_argument("-x", "--proxy", help="HTTP/HTTPS proxy (e.g. 'http://127.0.0.1:8080')")
@@ -285,7 +286,20 @@ def main():
         if cp not in params:
             params.append(cp)
             
-    print_success(f"Extracted {len(params)} unique potential parameters.")
+    # Add external wordlist if provided
+    if args.wordlist:
+        try:
+            with open(args.wordlist, "r", encoding="utf-8") as f:
+                custom_params = [line.strip() for line in f if line.strip()]
+                for cp in custom_params:
+                    if cp not in params:
+                        params.append(cp)
+            print_success(f"Loaded {len(custom_params)} parameters from {args.wordlist}")
+        except Exception as e:
+            print_error(f"Failed to load wordlist {args.wordlist}: {e}")
+            sys.exit(1)
+            
+    print_success(f"Extracted/Loaded {len(params)} unique potential parameters.")
     
     results = ghost.fuzz_params(params, base_text)
     

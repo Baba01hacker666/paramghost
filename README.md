@@ -42,6 +42,7 @@ python3 paramghost.py -u <target_url> [options]
 | `-w`, `--workers` | Workers | Number of concurrent workers (default: `10`). |
 | `-t`, `--timeout` | Timeout | HTTP request timeout in seconds (default: `10`). |
 | `-d`, `--delay` | Delay | Delay between requests in seconds (default: `0`). |
+| `-W`, `--wordlist` | Wordlist | Custom wordlist file containing parameters to fuzz. |
 | `-H`, `--header` | Header | Custom header (e.g. `-H "Authorization: Bearer token"`). Can be used multiple times. |
 | `-c`, `--cookie` | Cookie | Custom cookies (e.g. `-c "session=123; user=admin"`). |
 | `-x`, `--proxy` | Proxy | HTTP/HTTPS proxy (e.g. `-x http://127.0.0.1:8080`). |
