@@ -123,23 +123,48 @@ class ParamGhost:
         print_success(f"Found {len(js_urls)} JS files to analyze.")
         return list(js_urls), response.text
 
-    def process_js_url(self, url):
+    def process_text(self, text):
         params = set()
         param_pattern = re.compile(r'[\?\&]([a-zA-Z0-9_-]+)=')
         json_key_pattern = re.compile(r'["\']([a-zA-Z0-9_-]+)["\']\s*:')
         append_pattern = re.compile(r'\.append\(\s*["\']([a-zA-Z0-9_-]+)["\']')
         form_data_pattern = re.compile(r'FormData\(\)\.set\(\s*["\']([a-zA-Z0-9_-]+)["\']')
         
-        resp = self.fetch_url(url)
-        if not resp:
-            return params
-            
-        text = resp.text
         for pattern in [param_pattern, json_key_pattern, append_pattern, form_data_pattern]:
             for m in pattern.findall(text):
                 params.add(m)
-            
         return params
+
+    def process_js_url(self, url):
+        resp = self.fetch_url(url)
+        if not resp:
+            return set()
+        return self.process_text(resp.text)
+        
+    def extract_params_from_html(self, html_text):
+        print_info("Extracting parameters from HTML (forms, inputs, inline scripts)...")
+        params = set()
+        soup = BeautifulSoup(html_text, 'html.parser')
+        
+        # 1. Extract from standard form inputs
+        for tag in soup.find_all(['input', 'textarea', 'select']):
+            name = tag.get('name') or tag.get('id')
+            if name:
+                params.add(name)
+                
+        # 2. Extract from inline scripts
+        for script in soup.find_all('script'):
+            if not script.get('src') and script.string:
+                params.update(self.process_text(script.string))
+                
+        filtered_params = set()
+        for p in params:
+            p_lower = p.lower()
+            if 1 < len(p) < 32 and p_lower not in COMMON_JS_KEYWORDS:
+                filtered_params.add(p)
+                
+        print_success(f"Found {len(filtered_params)} parameters from HTML content.")
+        return list(filtered_params)
 
     def extract_params_from_js(self, js_urls):
         params = set()
@@ -375,6 +400,12 @@ def main():
             print_warning("Could not fetch base content. Fuzzing may produce unreliable results.")
         
     params = ghost.extract_params_from_js(js_urls)
+    
+    if base_text:
+        html_params = ghost.extract_params_from_html(base_text)
+        for hp in html_params:
+            if hp not in params:
+                params.append(hp)
     
     # Common potential hidden parameters to always include
     common_params = [
