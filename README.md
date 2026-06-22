@@ -30,8 +30,14 @@ By analyzing front-end code (such as variables, `FormData`, and `.append` calls)
 
 ## Usage
 
+If installed via pip:
 ```bash
-python3 paramghost.py -u <target_url> [options]
+paramghost -u <target_url> [options]
+```
+
+Or run directly from source:
+```bash
+python3 paramghost/main.py -u <target_url> [options]
 ```
 
 ### Options
