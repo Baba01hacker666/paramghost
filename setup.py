@@ -14,12 +14,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Baba01hacker666/paramghost",
-    packages=find_packages(),
-    py_modules=["paramghost"],
+    packages=["paramghost"],
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "paramghost=paramghost:main",
+            "paramghost=paramghost.main:main",
         ],
     },
     classifiers=[
